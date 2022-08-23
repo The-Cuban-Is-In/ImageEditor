@@ -1,5 +1,5 @@
 from ast import Delete
-from PIL import Image, ImageEnhance, ImageQt
+from PIL import Image, ImageEnhance, ImageQt, ImageFilter
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as qtg
 import PyQt5.QtCore as qtc
@@ -13,6 +13,9 @@ class ImageEditor(qtw.QWidget):
         
         self.current_img = ['dark-image.jpg']
         self.current_img_index = 0
+        self.bw_on_off = 0  # onoff for black/white
+        self.em_on_off = 0  # onoff for emboss
+        self.sm_on_off = 0  # onoff for smooth
 
         self.init_window()
         self.init_main_ui()
@@ -109,10 +112,10 @@ class ImageEditor(qtw.QWidget):
         self.brightness_btn = qtw.QPushButton(clicked = self.brighten_options)
         self.brightness_btn.setIcon(qtg.QIcon(os.path.join('icons', 'brightness-icon.png')))
 
-        self.crop_btn = qtw.QPushButton()
+        self.crop_btn = qtw.QPushButton(clicked = self.crop_options)
         self.crop_btn.setIcon(qtg.QIcon(os.path.join('icons', 'crop-icon.png')))
 
-        self.filter_btn = qtw.QPushButton()
+        self.filter_btn = qtw.QPushButton(clicked = self.filter_options)
         self.filter_btn.setIcon(qtg.QIcon(os.path.join('icons', 'filter-icon.png')))
 
         # add new buttons to layout
@@ -146,23 +149,18 @@ class ImageEditor(qtw.QWidget):
         self.bright_slider = qtw.QSlider(qtc.Qt.Horizontal)
         self.bright_slider.setMaximum(10)
         self.bright_slider.setMinimum(0)
-        self.bright_slider.setTickInterval(0.1)
+        self.bright_slider.setValue(2)
         self.bright_slider.setTickPosition(qtw.QSlider.TicksBothSides)
         self.bright_slider.valueChanged.connect(self.bright_img)
    
-
         self.row_two_layout.addWidget(self.back_to_edit)
         self.row_two_layout.addWidget(self.bright_slider)
 
-    def remove_edit_options(self):
+    def remove_bright_options(self):
         self.row_two_layout.removeWidget(self.back_to_edit)
         del self.back_to_edit
         self.row_two_layout.removeWidget(self.bright_slider)
         del self.bright_slider
-
-    def return_edit(self):
-        self.remove_edit_options()
-        self.show_edit_options()
 
     def bright_img(self):
         enhancer = ImageEnhance.Brightness(self.img)
@@ -173,10 +171,113 @@ class ImageEditor(qtw.QWidget):
         self.main_pic_label.setPixmap(self.scaled_img)
 
     def crop_options(self):
-        pass
+        self.hide_edit_options()
 
     def filter_options(self):
-        pass
+        self.hide_edit_options()
+
+        self.back_to_edit = qtw.QPushButton(clicked = self.return_edit)
+        self.back_to_edit.setIcon(qtg.QIcon(os.path.join('icons', 'back-icon.png')))
+
+        self.black_white_btn = qtw.QPushButton('Black & White', 
+            clicked = self.black_white_img)
+        self.black_white_btn.setStyleSheet("""
+            border: 2px solid white;
+            border-radius: 10px
+            """)
+
+        self.emboss_btn = qtw.QPushButton('Emboss',
+            clicked = self.emboss_img)
+        self.emboss_btn.setStyleSheet("""
+            border: 2px solid white;
+            border-radius: 50px
+            """)
+            
+        self.smooth_btn = qtw.QPushButton('Smooth',
+            clicked = self.smooth_img)
+        self.smooth_btn.setStyleSheet("""
+            border: 2px solid white;
+            border-radius: 50px
+            """)
+
+        self.row_two_layout.addWidget(self.back_to_edit)
+        self.row_two_layout.addWidget(self.black_white_btn)
+        self.row_two_layout.addWidget(self.emboss_btn)
+        self.row_two_layout.addWidget(self.smooth_btn)
+    
+    def black_white_img(self):
+        self.em_on_off = 0
+        self.sm_on_off = 0
+
+        if self.bw_on_off == 0:
+            self.temp = self.img
+            self.temp = self.temp.convert('L')
+            self.pixmap = ImageQt.toqpixmap(self.temp)
+            self.bw_on_off = 1
+        else:
+            self.pixmap = ImageQt.toqpixmap(self.img)
+            self.bw_on_off = 0
+
+        self.scaled_img = self.pixmap.scaled(500, 800, qtc.Qt.KeepAspectRatio)
+        self.main_pic_label.setPixmap(self.scaled_img)
+
+    def emboss_img(self):
+        self.bw_on_off = 0
+        self.sm_on_off = 0
+
+        if self.em_on_off == 0:
+            self.temp = self.img
+            self.temp = self.temp.filter(ImageFilter.EMBOSS)
+            self.pixmap = ImageQt.toqpixmap(self.temp)
+            self.em_on_off = 1
+        else:
+            self.pixmap = ImageQt.toqpixmap(self.img)
+            self.em_on_off = 0
+        
+        self.scaled_img = self.pixmap.scaled(500, 800, qtc.Qt.KeepAspectRatio)
+        self.main_pic_label.setPixmap(self.scaled_img)
+
+    def smooth_img(self):
+        self.bw_on_off = 0
+        self.em_on_off = 0
+
+        if self.sm_on_off == 0:
+            self.temp = self.img
+            self.temp = self.temp.filter(ImageFilter.SMOOTH)
+            self.pixmap = ImageQt.toqpixmap(self.temp)
+            self.sm_on_off = 1
+        else:
+            self.pixmap = ImageQt.toqpixmap(self.img)
+            self.sm_on_off = 0
+        
+        self.scaled_img = self.pixmap.scaled(500, 800, qtc.Qt.KeepAspectRatio)
+        self.main_pic_label.setPixmap(self.scaled_img)
+    
+    def remove_filter_options(self):
+        self.row_two_layout.removeWidget(self.smooth_btn)
+        del self.smooth_btn
+        self.row_two_layout.removeWidget(self.emboss_btn)
+        del self.emboss_btn
+        self.row_two_layout.removeWidget(self.black_white_btn)
+        del self.black_white_btn
+        self.row_two_layout.removeWidget(self.back_to_edit)
+        del self.back_to_edit
+               
+    
+    
+    def return_edit(self):
+        try:
+            self.remove_bright_options()
+        except:
+            pass
+
+        try:
+            self.img = self.temp
+            self.remove_filter_options()   
+        except:
+            pass
+            
+        self.show_edit_options()
 
 
 if __name__ == '__main__':
