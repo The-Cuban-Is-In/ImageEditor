@@ -1,24 +1,32 @@
 from ast import Delete
 from PIL import Image, ImageEnhance, ImageQt, ImageFilter
+
 import PyQt5.QtWidgets as qtw
 import PyQt5.QtGui as qtg
 import PyQt5.QtCore as qtc
 import sys
 import os
+from qcrop.ui import QCrop
 
 
 class ImageEditor(qtw.QWidget):
     def __init__(self):
         super().__init__()
         
-        self.current_img = ['dark-image.jpg']
-        self.current_img_index = 0
+        self.current_img = ['dark-image.jpg', 'sewergogs.jpg']
+        self.current_img_index = 1
         self.bw_on_off = 0  # onoff for black/white
         self.em_on_off = 0  # onoff for emboss
         self.sm_on_off = 0  # onoff for smooth
 
         self.init_window()
         self.init_main_ui()
+
+        self.selected = qtg.QPixmap(self.rect().size())
+        self.selected.fill(qtc.Qt.white)
+
+        self.begin, self.destination = qtc.QPoint, qtc.QPoint()
+        
         self.show()
 
     def init_window(self):
@@ -170,9 +178,6 @@ class ImageEditor(qtw.QWidget):
         self.scaled_img = self.pixmap.scaled(500, 800, qtc.Qt.KeepAspectRatio)
         self.main_pic_label.setPixmap(self.scaled_img)
 
-    def crop_options(self):
-        self.hide_edit_options()
-
     def filter_options(self):
         self.hide_edit_options()
 
@@ -180,24 +185,24 @@ class ImageEditor(qtw.QWidget):
         self.back_to_edit.setIcon(qtg.QIcon(os.path.join('icons', 'back-icon.png')))
 
         self.black_white_btn = qtw.QPushButton('Black & White', 
-            clicked = self.black_white_img)
+            clicked = self.black_white_img_filter)
         self.black_white_btn.setStyleSheet("""
             border: 2px solid white;
-            border-radius: 10px
+            border-radius: 50%;
             """)
 
         self.emboss_btn = qtw.QPushButton('Emboss',
-            clicked = self.emboss_img)
+            clicked = self.emboss_img_filter)
         self.emboss_btn.setStyleSheet("""
             border: 2px solid white;
-            border-radius: 50px
+            border-radius: 50%;
             """)
             
         self.smooth_btn = qtw.QPushButton('Smooth',
-            clicked = self.smooth_img)
+            clicked = self.smooth_img_filter)
         self.smooth_btn.setStyleSheet("""
             border: 2px solid white;
-            border-radius: 50px
+            border-radius: 50%;
             """)
 
         self.row_two_layout.addWidget(self.back_to_edit)
@@ -205,7 +210,7 @@ class ImageEditor(qtw.QWidget):
         self.row_two_layout.addWidget(self.emboss_btn)
         self.row_two_layout.addWidget(self.smooth_btn)
     
-    def black_white_img(self):
+    def black_white_img_filter(self):
         self.em_on_off = 0
         self.sm_on_off = 0
 
@@ -221,7 +226,7 @@ class ImageEditor(qtw.QWidget):
         self.scaled_img = self.pixmap.scaled(500, 800, qtc.Qt.KeepAspectRatio)
         self.main_pic_label.setPixmap(self.scaled_img)
 
-    def emboss_img(self):
+    def emboss_img_filter(self):
         self.bw_on_off = 0
         self.sm_on_off = 0
 
@@ -237,7 +242,7 @@ class ImageEditor(qtw.QWidget):
         self.scaled_img = self.pixmap.scaled(500, 800, qtc.Qt.KeepAspectRatio)
         self.main_pic_label.setPixmap(self.scaled_img)
 
-    def smooth_img(self):
+    def smooth_img_filter(self):
         self.bw_on_off = 0
         self.em_on_off = 0
 
@@ -254,17 +259,11 @@ class ImageEditor(qtw.QWidget):
         self.main_pic_label.setPixmap(self.scaled_img)
     
     def remove_filter_options(self):
-        self.row_two_layout.removeWidget(self.smooth_btn)
-        del self.smooth_btn
-        self.row_two_layout.removeWidget(self.emboss_btn)
-        del self.emboss_btn
-        self.row_two_layout.removeWidget(self.black_white_btn)
-        del self.black_white_btn
-        self.row_two_layout.removeWidget(self.back_to_edit)
-        del self.back_to_edit
-               
-    
-    
+        self.smooth_btn.hide()
+        self.emboss_btn.hide()
+        self.black_white_btn.hide()
+        self.back_to_edit.hide()
+                
     def return_edit(self):
         try:
             self.remove_bright_options()
@@ -272,12 +271,56 @@ class ImageEditor(qtw.QWidget):
             pass
 
         try:
-            self.img = self.temp
+            try:
+                self.img = self.temp
+            except:
+                pass
+
             self.remove_filter_options()   
         except:
             pass
             
         self.show_edit_options()
+    
+    def crop_options(self):
+        self.hide_edit_options()
+
+        self.back_to_edit = qtw.QPushButton(clicked = self.return_edit)
+        self.back_to_edit.setIcon(qtg.QIcon(os.path.join('icons', 'back-icon.png')))
+        self.row_two_layout.addWidget(self.back_to_edit)
+
+    def paint_event(self, event):
+        painter = qtg.QPainter(self)
+        painter.drawPixmap(qtc.QPoint(), self.selected)
+
+        if not self.begin.isNull() and not self.destination.isNull():
+            rect = qtc.QRect(self.begin, self.destination)
+            painter.drawRect(rect.normalized())
+
+    def mouse_press_event(self, event):
+        if event.button() & qtc.Qt.LeftButton:
+            self.begin = event.pos()
+            start = event.pos()
+            self.destination = self.begin
+            self.update()
+
+    
+    def mouse_move_event(self, event):
+        if event.button() & qtc.Qt.LeftButton:
+            self.destination = event.pos()
+            self.update()
+
+    def mouse_release_event(self, event):
+        if event.button() & qtc.Qt.LeftButton:
+            rect = qtc.QRect(self.begin, self.destination)
+            painter = qtg.QPainter(self.selected)
+            painter.drawRect(rect.normalized())
+
+            self.begin, self.destination = qtc.QPoint(), qtc.Qpoint()
+            self.update()
+
+
+        
 
 
 if __name__ == '__main__':
